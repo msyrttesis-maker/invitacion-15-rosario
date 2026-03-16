@@ -1,0 +1,51 @@
+function abrirCarta(){
+
+document.getElementById("carta").style.display="none"
+
+document.getElementById("pergamino").classList.remove("oculto")
+document.getElementById("pergamino1").classList.remove("oculto")
+let musica = document.getElementById("musica")
+
+musica.play().catch(function(error){
+console.log("No se pudo reproducir la música")
+})
+
+setTimeout(function(){
+
+document.getElementById("mapa").classList.remove("oculto")
+
+},2000)
+
+setTimeout(function(){
+
+document.getElementById("galeria").classList.remove("oculto")
+
+},4000)
+
+setTimeout(function(){
+
+document.getElementById("confirmacion").classList.remove("oculto")
+
+},6000)
+
+}
+
+
+/* CONTADOR */
+
+let fechaEvento = new Date("Apr 11, 2026 22:00:00").getTime()
+
+let contador = setInterval(function(){
+
+let ahora = new Date().getTime()
+
+let distancia = fechaEvento - ahora
+
+let dias = Math.floor(distancia / (1000*60*60*24))
+let horas = Math.floor((distancia % (1000*60*60*24)) / (1000*60*60))
+let minutos = Math.floor((distancia % (1000*60*60)) / (1000*60))
+
+document.getElementById("countdown").innerHTML =
+dias + " días " + horas + " horas " + minutos + " minutos"
+
+},1000)

@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Panel de Invitados</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+  <h1>Panel de Invitados</h1>
+
+  <!-- Resumen -->
+  <div class="resumen">
+    <p>Mayores confirmados: {{mayores}}</p>
+    <p>Menores confirmados: {{menores}}</p>
+    <p>Familias confirmadas: {{familias}}</p>
+    <p>No asistirán: {{no_asisten}}</p>
+  </div>
+
+  <!-- Crear invitado -->
+  <h2>Crear Invitado</h2>
+  <form action="/crear_invitado" method="post">
+    <input type="text" name="nombre" placeholder="Nombre" required>
+    <select name="tipo" required>
+      <option value="mayor">Mayor</option>
+      <option value="menor">Menor</option>
+      <option value="familia">Familia</option>
+    </select>
+    <input type="number" name="max_personas" placeholder="Máx. Personas" required>
+    <button type="submit">Crear Invitación</button>
+  </form>
+
+  <!-- Tabla de invitados -->
+  <h2>Lista de Invitados</h2>
+  <table border="1" cellpadding="5">
+    <tr>
+      <th>ID</th>
+      <th>Nombre</th>
+      <th>Tipo</th>
+      <th>Máximo</th>
+      <th>Confirmados</th>
+      <th>Link</th>
+      <th>Eliminar</th>
+    </tr>
+    {% for id,nombre,tipo,max_personas,confirmado,codigo in datos %}
+    <tr>
+      <td>{{id}}</td>
+      <td>{{nombre}}</td>
+      <td>{{tipo}}</td>
+      <td>{{max_personas}}</td>
+      <td>
+        {% if confirmado == -1 %}
+          No asistirá
+        {% elif confirmado == 0 %}
+          Sin respuesta
+        {% else %}
+          {{confirmado}}
+        {% endif %}
+      </td>
+      <td>
+        <a href="/inv/{{codigo}}" target="_blank">Abrir</a>
+      </td>
+      <td>
+        <a href="/eliminar/{{id}}">Eliminar</a>
+      </td>
+    </tr>
+    {% endfor %}
+  </table>
+</body>
+</html>
+

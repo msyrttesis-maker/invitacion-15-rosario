@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+<meta charset="UTF-8">
+<title>Invitación Mágica</title>
+
+<!-- Fuente -->
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Great+Vibes&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:wght@400;700&display=swap" rel="stylesheet">
+
+<!-- CSS -->
+<link rel="stylesheet" href="/static/css/style.css">
+
+</head>
+
+
+<body>
+
+<audio id="musica" loop>
+<source src="/static/music/harry_theme.mp3" type="audio/mpeg">
+</audio>
+
+<div class="fondo">
+
+<!-- CARTA -->
+<div id="carta" class="carta" onclick="abrirCarta()">
+<h1>✨ Te invito a mi fiesta ✨</h1>
+<p>Haz clic para descubrir la invitación</p>
+</div>
+
+
+<!-- PERGAMINO MISA -->
+<div id="pergamino" class="pergamino oculto">
+
+<h2 class="firma">{{nombre}}</h2>
+<p class="introduccion">
+✨ Con la bendición de Dios y el amor de mi familia, te invito a acompañarme en la Misa de Acción de Gracias por mis 15 años. ✨
+</p>
+
+<p class="texto">
+Porque Dios siempre me guía y me protege, quiero celebrar junto a Él este momento tan especial
+</p>
+
+<p>
+📅 12 de Abril 2026<br>
+⏰ 20:00 hs
+</p>
+
+<p>
+📍 Parroquia María Auxiliadora <br>
+9 de Julio 1015
+</p>
+<p class="firma">
+María del Rosario
+</p>
+</div>
+
+
+
+<!-- PERGAMINO FIESTA -->
+<div id="pergamino1" class="pergamino oculto">
+
+<p class="introduccion">
+
+✨ Con gran alegría y un toque de magia, te hago llegar esta invitación especial.  
+Prepárate para una noche llena de hechizos, risas y momentos inolvidables.  
+Tu presencia será la chispa que hará brillar aún más esta celebración encantada. ✨
+
+</p>
+
+<p class="texto">
+Estás invitado a una celebración mágica.
+</p>
+
+<p>
+📅 11 de Abril 2026<br>
+⏰ 22:00 hs
+</p>
+
+<p>
+📍 Salón del Colegio de Ingenieros<br>
+Gutnisky 1870
+</p>
+
+
+<div class="contador">
+<h3>Cuenta regresiva</h3>
+<p id="countdown"></p>
+</div>
+
+</div>
+
+
+
+<!-- MAPA -->
+<div id="mapa" class="mapa oculto">
+
+<h2>Cómo llegar</h2>
+
+<div class="mapa-container">
+
+<img src="/static/img/mapa.png" class="imagen-mapa">
+
+<div class="mapa-real">
+
+<iframe
+src="https://www.google.com/maps?q=Gutnisky+1870+Formosa&output=embed"
+width="600"
+height="500"
+style="border:0;"
+loading="lazy">
+</iframe>
+
+<br>
+
+<a href="https://www.google.com/maps?q=Gutnisky+1870+Formosa" target="_blank">
+<button>Ver en Google Maps</button>
+</a>
+
+</div>
+</div>
+
+</div>
+
+
+
+<!-- CONFIRMACION -->
+<div id="confirmacion" class="confirmacion oculto">
+
+<h2>Confirmar asistencia</h2>
+
+<form action="/confirmar" method="post">
+
+<input type="hidden" name="codigo" value="{{codigo}}">
+
+<label>Personas que asistirán</label>
+
+<input type="number"
+name="personas"
+min="1"
+max="{{max_personas}}"
+required>
+
+<br>
+
+<button type="submit">
+Confirmar asistencia
+</button>
+
+</form>
+
+
+<form action="/no_asistire" method="post">
+
+<input type="hidden" name="codigo" value="{{codigo}}">
+
+<button type="submit">
+No asistiré
+</button>
+
+</form>
+
+<p class="firma">
+María del Rosario
+</p>
+</div>
+
+</div>
+
+
+<!-- JS -->
+<script src="/static/js/magia.js"></script>
+
+</body>
+</html>
