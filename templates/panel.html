@@ -1,7 +1,6 @@
 <table border="1">
 
 <tr>
-<th>ID</th>
 <th>Nombre</th>
 <th>Tipo</th>
 <th>Confirmados</th>
@@ -11,13 +10,12 @@
 {% for d in datos %}
 
 <tr>
-<td>{{d[0]}}</td>
-<td>{{d[1]}}</td>
-<td>{{d[2]}}</td>
-<td>{{d[3]}}</td>
+<td>{{ d.nombre }}</td>
+<td>{{ d.tipo_persona }}</td>
+<td>{{ d.confirmado }}</td>
 
 <td>
-<a href="/eliminar/{{d[0]}}">Eliminar</a>
+<a href="/eliminar/{{ d.codigo }}">Eliminar</a>
 </td>
 
 </tr>

@@ -114,7 +114,6 @@ background:red;
 
 <tr>
 
-<th>ID</th>
 <th>Nombre</th>
 <th>Tipo</th>
 <th>Máximo</th>
@@ -129,29 +128,26 @@ background:red;
 
 <tr>
 
-<td>{{d[0]}}</td>
+<td>{{ d.nombre }}</td>
 
-<td>{{d[1]}}</td>
+<td>{{ d.tipo_persona }}</td>
 
-<td>{{d[2]}}</td>
+<td>{{ d.max_personas }}</td>
 
-<td>{{d[3]}}</td>
-
-<td>{{d[4]}}</td>
+<td>{{ d.confirmado }}</td>
 
 <td>
-
-<a href="/inv/{{d[5]}}" target="_blank">
+<a href="/inv/{{ d.codigo }}" target="_blank">
 Abrir
 </a>
 
-<button onclick="copiarLink('{{d[5]}}')">
+<button onclick="copiarLink('{{ d.codigo }}')">
 Copiar Link
 </button>
 
 </td>
 <td>
-<a href="/eliminar/{{d[0]}}">
+<a href="/eliminar/{{ d.codigo }}">
 <button class="eliminar">Eliminar</button>
 </a>
 </td>
@@ -177,3 +173,4 @@ alert("Link copiado: " + url);
 </script>
 
 </body>
+</html>

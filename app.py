@@ -1,159 +1,130 @@
 from flask import Flask, render_template, request
-import sqlite3
+from pymongo import MongoClient
 import uuid
+import os
 
 app = Flask(__name__)
 
-def db():
-    return sqlite3.connect("database.db")
+# -----------------------------
+# CONEXIÓN A MONGODB ATLAS
+# -----------------------------
+MONGO_URI = os.getenv(
+    "MONGO_URI"
+)
+client = MongoClient(MONGO_URI)
+db = client["InvitacionRosarioDB"]
+invitados_col = db["invitados"]
 
-# CREAR TABLA DE INVITADOS
-def crear_tablas():
-    con = db()
-    cur = con.cursor()
-    cur.execute("""
-    CREATE TABLE IF NOT EXISTS invitados(
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        nombre TEXT,
-        codigo TEXT UNIQUE,
-        max_personas INTEGER,
-        confirmado INTEGER DEFAULT 0,
-        tipo_persona TEXT
-    )
-    """)
-    con.commit()
-    con.close()
-
-crear_tablas()
-
+# -----------------------------
 # PAGINA INICIAL
+# -----------------------------
 @app.route("/")
 def inicio():
     return "Sistema de invitaciones funcionando"
 
+# -----------------------------
 # CREAR INVITADO
+# -----------------------------
 @app.route("/crear_invitado", methods=["POST"])
 def crear_invitado():
+    nombre = request.form.get("nombre")
+    tipo = request.form.get("tipo")
+    max_personas = request.form.get("max_personas")
 
-    nombre = request.form["nombre"]
-    tipo = request.form["tipo"]
-    max_personas = request.form["max_personas"]
+    if not nombre or not tipo or not max_personas:
+        return "Faltan datos", 400
 
     codigo = str(uuid.uuid4())[:8]
 
-    con = db()
-    cur = con.cursor()
-
-    cur.execute(
-        "INSERT INTO invitados(nombre,codigo,max_personas,tipo_persona) VALUES(?,?,?,?)",
-        (nombre, codigo, max_personas, tipo)
-    )
-
-    con.commit()
-    con.close()
+    invitados_col.insert_one({
+        "nombre": nombre,
+        "codigo": codigo,
+        "max_personas": int(max_personas),
+        "tipo_persona": tipo,
+        "confirmado": 0   # por defecto
+    })
 
     return "<script>window.location='/admin'</script>"
-# ABRIR INVITACION
+
+# -----------------------------
+# ABRIR INVITACIÓN
+# -----------------------------
 @app.route("/inv/<codigo>")
 def invitacion(codigo):
-    con = db()
-    cur = con.cursor()
-    cur.execute(
-        "SELECT nombre,max_personas FROM invitados WHERE codigo=?",
-        (codigo,)
-    )
-    invitado = cur.fetchone()
-    con.close()
-
+    invitado = invitados_col.find_one({"codigo": codigo})
     if invitado:
-        nombre = invitado[0]
-        max_personas = invitado[1]
         return render_template(
             "invitacion.html",
-            nombre=nombre,
-            max_personas=max_personas,
+            nombre=invitado["nombre"],
+            max_personas=invitado["max_personas"],
             codigo=codigo
         )
     else:
         return "Invitación no válida"
 
+# -----------------------------
 # CONFIRMAR ASISTENCIA
+# -----------------------------
 @app.route("/confirmar", methods=["POST"])
 def confirmar():
-    codigo = request.form["codigo"]
-    personas = request.form["personas"]
+    codigo = request.form.get("codigo")
+    personas = request.form.get("personas")
 
-    con = db()
-    cur = con.cursor()
-    cur.execute(
-        "UPDATE invitados SET confirmado=? WHERE codigo=?",
-        (personas, codigo)
+    if not codigo or not personas:
+        return "Faltan datos", 400
+
+    invitados_col.update_one(
+        {"codigo": codigo},
+        {"$set": {"confirmado": int(personas)}}
     )
-    con.commit()
-    con.close()
     return "¡Gracias por confirmar!"
 
+# -----------------------------
 # NO ASISTIRÉ
+# -----------------------------
 @app.route("/no_asistire", methods=["POST"])
 def no_asistire():
-    codigo = request.form["codigo"]
-    con = db()
-    cur = con.cursor()
-    cur.execute(
-        "UPDATE invitados SET confirmado=? WHERE codigo=?",
-        (-1, codigo)
+    codigo = request.form.get("codigo")
+
+    if not codigo:
+        return "Faltan datos", 400
+
+    invitados_col.update_one(
+        {"codigo": codigo},
+        {"$set": {"confirmado": -1}}
     )
-    con.commit()
-    con.close()
     return "Lamentamos que no puedas asistir, gracias por avisar."
 
+# -----------------------------
 # ELIMINAR INVITADO
-@app.route("/eliminar/<int:id>")
-def eliminar(id):
-    con = db()
-    cur = con.cursor()
-    cur.execute("DELETE FROM invitados WHERE id=?", (id,))
-    con.commit()
-    con.close()
+# -----------------------------
+@app.route("/eliminar/<codigo>")
+def eliminar(codigo):
+    resultado = invitados_col.delete_one({"codigo": codigo})
+    if resultado.deleted_count == 0:
+        return "Invitado no encontrado", 404
     return "<script>window.location='/admin'</script>"
 
+# -----------------------------
 # PANEL SIMPLE
+# -----------------------------
 @app.route("/panel")
 def panel():
-    con = db()
-    cur = con.cursor()
-    cur.execute("SELECT nombre, confirmado FROM invitados")
-    datos = cur.fetchall()
-    con.close()
+    datos = list(invitados_col.find({}, {"_id":0, "nombre":1, "confirmado":1, "tipo_persona":1}))
     return render_template("panel.html", datos=datos)
 
+# -----------------------------
 # ADMIN
+# -----------------------------
 @app.route("/admin")
 def admin():
-    con = db()
-    cur = con.cursor()
-    cur.execute("SELECT id,nombre,tipo_persona,max_personas,confirmado,codigo FROM invitados")
-    datos = cur.fetchall()
+    datos = list(invitados_col.find({}, {"_id":0, "nombre":1, "tipo_persona":1, "max_personas":1, "confirmado":1, "codigo":1}))
 
-    mayores = 0
-    menores = 0
-    familias = 0
-    no_asisten = 0
-
-    for d in datos:
-        tipo = d[2]
-        confirmados = d[4] if d[4] else 0
-
-        if confirmados == -1:
-            no_asisten += 1
-        elif tipo == "mayor":
-            mayores += confirmados
-        elif tipo == "menor":
-            menores += confirmados
-        elif tipo == "familia":
-            familias += confirmados
-
-    con.close()
+    # Contadores por tipo
+    mayores = sum(d.get("confirmado",0) for d in datos if d.get("tipo_persona")=="mayor" and d.get("confirmado",0)>0)
+    menores = sum(d.get("confirmado",0) for d in datos if d.get("tipo_persona")=="menor" and d.get("confirmado",0)>0)
+    familias = sum(d.get("confirmado",0) for d in datos if d.get("tipo_persona")=="familia" and d.get("confirmado",0)>0)
+    no_asisten = sum(1 for d in datos if d.get("confirmado",-1)==-1)
 
     return render_template(
         "admin.html",
@@ -164,6 +135,8 @@ def admin():
         no_asisten=no_asisten
     )
 
-
+# -----------------------------
+# MAIN
+# -----------------------------
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
