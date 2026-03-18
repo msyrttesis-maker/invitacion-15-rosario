@@ -6,70 +6,36 @@ import time
 
 app = Flask(__name__)
 
-# -----------------------------
-# CONFIG
-# -----------------------------
 MONGO_URI = os.getenv("MONGO_URI")
 
-client = None
-db = None
-invitados_col = None
 
 # -----------------------------
-# CONEXIÓN SEGURA A MONGO
+# CONEXIÓN + REINTENTO
 # -----------------------------
-def conectar_mongo():
-    global client, db, invitados_col
-
-    try:
-        client = MongoClient(
-            MONGO_URI,
-            serverSelectionTimeoutMS=5000,
-            connectTimeoutMS=5000,
-            socketTimeoutMS=5000
-        )
-
-        client.server_info()  # fuerza conexión
-
-        db = client["InvitacionRosarioDB"]
-
-        # 👇 IMPORTANTE: colección de prueba
-        invitados_col = db["invitados"]
-
-        print("✅ Conectado a Mongo")
-        return True
-
-    except Exception as e:
-        print("❌ Error conectando Mongo:", e)
-        return False
-
-
-# conectar al iniciar
-conectar_mongo()
-
-# -----------------------------
-# FUNCIÓN SEGURA (REINTENTOS)
-# -----------------------------
-def obtener_datos():
-    global invitados_col
-
+def get_collection():
     for intento in range(3):
         try:
-            return list(invitados_col.find({}, {"_id":0}))
+            client = MongoClient(
+                MONGO_URI,
+                serverSelectionTimeoutMS=3000,
+                connectTimeoutMS=3000,
+                socketTimeoutMS=3000
+            )
+
+            client.admin.command('ping')
+
+            db = client["InvitacionRosarioDB"]
+            return db["invitados"]
+
         except Exception as e:
-            print(f"⚠️ Error intento {intento+1}:", e)
-
-            # intentar reconectar
-            if conectar_mongo():
-                continue
-
+            print(f"❌ Mongo intento {intento+1}:", e)
             time.sleep(1)
 
     return None
 
 
 # -----------------------------
-# INICIO
+# HOME
 # -----------------------------
 @app.route("/")
 def inicio():
@@ -81,24 +47,32 @@ def inicio():
 # -----------------------------
 @app.route("/admin")
 def admin():
-    datos = obtener_datos()
+    col = get_collection()
 
     error = None
 
-    if datos is None:
+    if col is None:
         datos = []
-        error = "⚠️ Problema de conexión con la base de datos"
+        error = "⚠️ No se pudo conectar a la base de datos"
+    else:
+        try:
+            datos = list(col.find({}, {
+                "_id": 0,
+                "nombre": 1,
+                "tipo_persona": 1,
+                "max_personas": 1,
+                "confirmado": 1,
+                "codigo": 1
+            }))
+        except Exception as e:
+            print("Error Mongo:", e)
+            datos = []
+            error = "Error consultando datos"
 
-    try:
-        mayores = sum(d.get("confirmado",0) for d in datos if d.get("tipo_persona")=="mayor" and d.get("confirmado",0)>0)
-        menores = sum(d.get("confirmado",0) for d in datos if d.get("tipo_persona")=="menor" and d.get("confirmado",0)>0)
-        familias = sum(d.get("confirmado",0) for d in datos if d.get("tipo_persona")=="familia" and d.get("confirmado",0)>0)
-        no_asisten = sum(1 for d in datos if d.get("confirmado",-1)==-1)
-
-    except Exception as e:
-        print("Error procesando datos:", e)
-        mayores = menores = familias = no_asisten = 0
-        error = "Error procesando datos"
+    mayores = sum(d.get("confirmado",0) for d in datos if d.get("tipo_persona")=="mayor" and d.get("confirmado",0)>0)
+    menores = sum(d.get("confirmado",0) for d in datos if d.get("tipo_persona")=="menor" and d.get("confirmado",0)>0)
+    familias = sum(d.get("confirmado",0) for d in datos if d.get("tipo_persona")=="familia" and d.get("confirmado",0)>0)
+    no_asisten = sum(1 for d in datos if d.get("confirmado",-1)==-1)
 
     return render_template(
         "admin.html",
@@ -110,11 +84,17 @@ def admin():
         error=error
     )
 
+
 # -----------------------------
 # CREAR INVITADO
 # -----------------------------
 @app.route("/crear_invitado", methods=["POST"])
 def crear_invitado():
+    col = get_collection()
+
+    if col is None:
+        return "Error de conexión. Intentá nuevamente."
+
     try:
         nombre = request.form.get("nombre")
         tipo = request.form.get("tipo")
@@ -125,7 +105,7 @@ def crear_invitado():
 
         codigo = str(uuid.uuid4())[:8]
 
-        invitados_col.insert_one({
+        col.insert_one({
             "nombre": nombre,
             "codigo": codigo,
             "max_personas": int(max_personas),
@@ -136,7 +116,8 @@ def crear_invitado():
         return redirect("/admin")
 
     except Exception as e:
-        return f"❌ Error creando invitado: {e}"
+        print("Error creando invitado:", e)
+        return "Error al guardar"
 
 
 # -----------------------------
@@ -144,8 +125,13 @@ def crear_invitado():
 # -----------------------------
 @app.route("/inv/<codigo>")
 def invitacion(codigo):
+    col = get_collection()
+
+    if col is None:
+        return "Error de conexión"
+
     try:
-        invitado = invitados_col.find_one({"codigo": codigo})
+        invitado = col.find_one({"codigo": codigo})
 
         if not invitado:
             return "Invitación no válida"
@@ -158,7 +144,8 @@ def invitacion(codigo):
         )
 
     except Exception as e:
-        return f"❌ Error cargando invitación: {e}"
+        print("Error invitación:", e)
+        return "Error cargando invitación"
 
 
 # -----------------------------
@@ -166,6 +153,11 @@ def invitacion(codigo):
 # -----------------------------
 @app.route("/confirmar", methods=["POST"])
 def confirmar():
+    col = get_collection()
+
+    if col is None:
+        return "Error de conexión"
+
     try:
         codigo = request.form.get("codigo")
         personas = request.form.get("personas")
@@ -173,7 +165,7 @@ def confirmar():
         if not codigo or not personas:
             return "Faltan datos", 400
 
-        invitados_col.update_one(
+        col.update_one(
             {"codigo": codigo},
             {"$set": {"confirmado": int(personas)}}
         )
@@ -181,7 +173,8 @@ def confirmar():
         return "¡Gracias por confirmar!"
 
     except Exception as e:
-        return f"❌ Error confirmando: {e}"
+        print("Error confirmar:", e)
+        return "Error"
 
 
 # -----------------------------
@@ -189,13 +182,18 @@ def confirmar():
 # -----------------------------
 @app.route("/no_asistire", methods=["POST"])
 def no_asistire():
+    col = get_collection()
+
+    if col is None:
+        return "Error de conexión"
+
     try:
         codigo = request.form.get("codigo")
 
         if not codigo:
             return "Faltan datos", 400
 
-        invitados_col.update_one(
+        col.update_one(
             {"codigo": codigo},
             {"$set": {"confirmado": -1}}
         )
@@ -203,7 +201,8 @@ def no_asistire():
         return "Gracias por avisar"
 
     except Exception as e:
-        return f"❌ Error: {e}"
+        print("Error no asistir:", e)
+        return "Error"
 
 
 # -----------------------------
@@ -211,12 +210,18 @@ def no_asistire():
 # -----------------------------
 @app.route("/eliminar/<codigo>")
 def eliminar(codigo):
+    col = get_collection()
+
+    if col is None:
+        return "Error de conexión"
+
     try:
-        invitados_col.delete_one({"codigo": codigo})
+        col.delete_one({"codigo": codigo})
         return redirect("/admin")
 
     except Exception as e:
-        return f"❌ Error eliminando: {e}"
+        print("Error eliminar:", e)
+        return "Error"
 
 
 # -----------------------------
