@@ -34,7 +34,7 @@ def conectar_mongo():
         db = client["InvitacionRosarioDB"]
 
         # 👇 IMPORTANTE: colección de prueba
-        invitados_col = db["invitados_test"]
+        invitados_col = db["invitados"]
 
         print("✅ Conectado a Mongo")
         return True
