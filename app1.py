@@ -83,12 +83,11 @@ def inicio():
 def admin():
     datos = obtener_datos()
 
-    if datos is None:
-        return "⚠️ No se pudo conectar a la base de datos. Reintentá en unos segundos."
+    error = None
 
-    # si no hay datos
-    if len(datos) == 0:
-        return "ℹ️ No hay invitados cargados todavía."
+    if datos is None:
+        datos = []
+        error = "⚠️ Problema de conexión con la base de datos"
 
     try:
         mayores = sum(d.get("confirmado",0) for d in datos if d.get("tipo_persona")=="mayor" and d.get("confirmado",0)>0)
@@ -96,18 +95,20 @@ def admin():
         familias = sum(d.get("confirmado",0) for d in datos if d.get("tipo_persona")=="familia" and d.get("confirmado",0)>0)
         no_asisten = sum(1 for d in datos if d.get("confirmado",-1)==-1)
 
-        return render_template(
-            "admin.html",
-            datos=datos,
-            mayores=mayores,
-            menores=menores,
-            familias=familias,
-            no_asisten=no_asisten
-        )
-
     except Exception as e:
-        return f"❌ Error procesando datos: {e}"
+        print("Error procesando datos:", e)
+        mayores = menores = familias = no_asisten = 0
+        error = "Error procesando datos"
 
+    return render_template(
+        "admin.html",
+        datos=datos,
+        mayores=mayores,
+        menores=menores,
+        familias=familias,
+        no_asisten=no_asisten,
+        error=error
+    )
 
 # -----------------------------
 # CREAR INVITADO
